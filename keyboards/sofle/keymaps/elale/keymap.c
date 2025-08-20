@@ -35,6 +35,7 @@ typedef union {
 } user_config_t;
 
 static user_config_t user_config;
+static uint32_t oled_idle_timer = 0;
 
 void eeconfig_init_user(void) {
     user_config.raw = 0;
@@ -43,6 +44,7 @@ void eeconfig_init_user(void) {
 }
 
 void keyboard_post_init_user(void) {
+    oled_set_brightness(120);
     user_config.raw = eeconfig_read_user();
 }
 
@@ -152,72 +154,91 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
 
 #ifdef OLED_ENABLE
 
-static void render_logo(void) {
-    static const char PROGMEM qmk_logo[] = {
-        0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f,0x90,0x91,0x92,0x93,0x94,
-        0xa0,0xa1,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7,0xa8,0xa9,0xaa,0xab,0xac,0xad,0xae,0xaf,0xb0,0xb1,0xb2,0xb3,0xb4,
-        0xc0,0xc1,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7,0xc8,0xc9,0xca,0xcb,0xcc,0xcd,0xce,0xcf,0xd0,0xd1,0xd2,0xd3,0xd4,0
-    };
-
-    oled_write_P(qmk_logo, false);
+static void oled_print_os(void) {
+    oled_write_ln_P(PSTR("OS"), false);
+    oled_write_P(PSTR("W"), user_config.os_mode == OS_WIN);
+    oled_write_P(PSTR("/"), false);
+    oled_write_P(PSTR("M"), user_config.os_mode == OS_MAC);
+    oled_write_P(PSTR("/"), false);
+    oled_write_ln_P(PSTR("L"), user_config.os_mode == OS_LIN);
+}
+static void oled_print_layer(void) {
+    uint8_t layer = get_highest_layer(layer_state | default_layer_state);
+    oled_write_ln_P(PSTR("Layer"), false);
+    oled_write_P(PSTR("B"), layer == _QWERTY);
+    oled_write_P(PSTR(" "), false);
+    oled_write_ln_P(PSTR("L"), layer == _LOWER);
+    oled_write_P(PSTR("R"), layer == _RAISE);
+    oled_write_P(PSTR(" "), false);
+    oled_write_ln_P(PSTR("A"), layer == _ADJUST);
+    oled_write_ln_P(PSTR(""), false);
+}
+static void oled_print_flags(void) {
+    led_t led = host_keyboard_led_state();
+    bool cw_on = is_caps_word_on();
+    oled_write_ln_P(PSTR("Flags"), false);
+    oled_write_P(PSTR("C"), led.caps_lock);
+    oled_write_P(PSTR(" "), false);
+    oled_write_ln_P(PSTR("W"), cw_on);
 }
 
-static void print_status_narrow(void) {
-    // Print current mode
-    oled_write_P(PSTR("\n\n"), false);
-    oled_write_ln_P(PSTR("MODE"), false);
-    oled_write_ln_P(PSTR(""), false);
-    if (keymap_config.swap_lctl_lgui) {
-        oled_write_ln_P(PSTR("MAC"), false);
-    } else {
-        oled_write_ln_P(PSTR("WIN"), false);
-    }
-
-    switch (get_highest_layer(default_layer_state)) {
+static void render_left_hud(void) {
+    oled_clear();
+    oled_set_cursor(0,0);
+    oled_print_os();
+    oled_print_layer();
+    oled_print_flags();
+}
+static void render_right_help(void) {
+    uint8_t layer = get_highest_layer(layer_state | default_layer_state);
+    oled_clear();
+    oled_set_cursor(0,0);
+    switch (layer) {
         case _QWERTY:
-            oled_write_ln_P(PSTR("Qwrt"), false);
-            break;
-        default:
-            oled_write_P(PSTR("Undef"), false);
-    }
-    oled_write_P(PSTR("\n\n"), false);
-    // Print current layer
-    oled_write_ln_P(PSTR("LAYER"), false);
-    switch (get_highest_layer(layer_state)) {
-        case _QWERTY:
-            oled_write_P(PSTR("Base\n"), false);
-            break;
-        case _RAISE:
-            oled_write_P(PSTR("Raise"), false);
+            oled_write_ln_P(PSTR("BASE"), false);
+            oled_write_ln_P(PSTR(""), false);
+            oled_write_ln_P(PSTR("Vol"), false);
+            oled_write_ln_P(PSTR("Tabs"), false);
             break;
         case _LOWER:
-            oled_write_P(PSTR("Lower"), false);
+            oled_write_ln_P(PSTR("LOWER"), false);
+            oled_write_ln_P(PSTR(""), false);
+            oled_write_ln_P(PSTR("Zoom"), false);
+            oled_write_ln_P(PSTR("Scrll"), false);
+            oled_write_ln_P(PSTR("<{}[]"), false);
+            break;
+        case _RAISE:
+            oled_write_ln_P(PSTR("RAISE"), false);
+            oled_write_ln_P(PSTR(""), false);
+            oled_write_ln_P(PSTR("Desks"), false);
+            oled_write_ln_P(PSTR("PgDn/PgUp"), false);
+            oled_write_ln_P(PSTR("Shot Lock :)"), false);
             break;
         case _ADJUST:
-            oled_write_P(PSTR("Adj\n"), false);
+            oled_write_ln_P(PSTR("ADJST"), false);
+            oled_write_ln_P(PSTR(""), false);
+            oled_write_ln_P(PSTR("W/M/L"), false);
+            oled_write_ln_P(PSTR("Caps"), false);
+            oled_write_ln_P(PSTR("CG Tg"), false);
+            oled_write_ln_P(PSTR("Media"), false);
             break;
-        default:
-            oled_write_ln_P(PSTR("Undef"), false);
     }
-    oled_write_P(PSTR("\n\n"), false);
-    led_t led_usb_state = host_keyboard_led_state();
-    oled_write_ln_P(PSTR("CPSLK"), led_usb_state.caps_lock);
 }
 
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
-    if (is_keyboard_master()) {
-        return OLED_ROTATION_270;
-    }
-    return rotation;
+    return OLED_ROTATION_270;
 }
 
 bool oled_task_user(void) {
-    if (is_keyboard_master()) {
-        print_status_narrow();
-    } else {
-        render_logo();
-    }
+    if (is_keyboard_master()) render_left_hud();
+    else render_right_help();
     return false;
+}
+
+void matrix_scan_user(void) {
+    if (timer_elapsed32(oled_idle_timer) > 5000) {
+        oled_off();
+    }
 }
 
 #endif
@@ -373,6 +394,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
     }
+
+    if (record->event.pressed) {
+        oled_on();
+        oled_idle_timer = timer_read32();
+    }
+
     return true;
 }
 
