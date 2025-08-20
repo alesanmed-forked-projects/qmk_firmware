@@ -1,9 +1,6 @@
 #include QMK_KEYBOARD_H
 #include "keymap_spanish.h"
 
-#define SFT_PAREN_L  LSFT_T(KC_LPRN)
-#define SFT_PAREN_R  RSFT_T(KC_RPRN)
-
 enum sofle_layers {
     /* _M_XYZ = Mac Os, _W_XYZ = Win/Linux */
     _QWERTY,
@@ -26,7 +23,8 @@ enum custom_keycodes {
     KC_SSHOT,
     KC_LOCK,
     KC_EMOJI,
-    KC_OS_TOG
+    KC_OS_TOG,
+    KC_ANG_PAIR
 };
 
 typedef enum { OS_WIN = 0, OS_MAC = 1, OS_LIN = 2 } os_mode_t;
@@ -75,8 +73,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   ES_MORD,  KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,  ES_QUOT,
   KC_ESC,   KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                     KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,  KC_BSPC,
   KC_TAB,   KC_A,   KC_S,    KC_D,    KC_F,    KC_G,                     KC_H,    KC_J,    KC_K,    KC_L, ES_NTIL,  ES_ACUT,
-  SFT_PAREN_L, KC_Z,  KC_X,  KC_C,    KC_V,    KC_B, KC_MUTE,     XXXXXXX,KC_N,    KC_M, KC_COMM,  KC_DOT, ES_MINS,  SFT_PAREN_R,
-     KC_LGUI,KC_LALT,KC_LCTL, MO(_LOWER), LT(_LOWER, KC_ENT),     LT(_RAISE, KC_SPC),  MO(_RAISE), KC_RCTL, KC_RALT, KC_RGUI
+  SC_LSPO,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B, KC_MUTE,     XXXXXXX,KC_N,    KC_M, KC_COMM,  KC_DOT, ES_MINS,  SC_RSPC,
+     KC_LGUI,SC_LAPO,SC_LCPO, MO(_LOWER), LT(_LOWER, KC_ENT),     LT(_RAISE, KC_SPC),  MO(_RAISE), SC_RCPC, SC_RAPC, KC_RGUI
 ),
 /* LOWER
  * ,-----------------------------------------.                    ,-----------------------------------------.
@@ -96,7 +94,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                       KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  ES_IEXL,
   KC_F12,   KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                       KC_6,    KC_7,    KC_8,    KC_9,    ES_GRV,  ES_PLUS,
   _______, KC_EXLM,   KC_AT, KC_HASH,  KC_DLR, KC_PERC,                       KC_CIRC, KC_AMPR, KC_ASTR, KC_LPRN, ES_ACUT, ES_CCED,
-  _______,  ES_EQL,  ES_MINS, ES_PLUS, ES_LCBR, ES_RCBR, _______,       _______, KC_LBRC, KC_RBRC, KC_SCLN, KC_COLN, KC_BSLS, _______,
+  _______, KC_ANG_PAIR,ES_LABK,ES_RABK,ES_LCBR,ES_RCBR, _______,       _______, KC_LBRC, KC_RBRC, KC_SCLN, KC_COLN, KC_BSLS, _______,
                        _______, _______, _______, _______, _______,       _______, MO(_RAISE), _______, _______, _______
 ),
 /* RAISE
@@ -318,97 +316,62 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 unregister_code(KC_BSPC);
             }
             break;
-        case KC_COPY:
-            if (record->event.pressed) {
-                register_mods(mod_config(MOD_LCTL));
-                register_code(KC_C);
-            } else {
-                unregister_mods(mod_config(MOD_LCTL));
-                unregister_code(KC_C);
-            }
-            return false;
-        case KC_PASTE:
-            if (record->event.pressed) {
-                register_mods(mod_config(MOD_LCTL));
-                register_code(KC_V);
-            } else {
-                unregister_mods(mod_config(MOD_LCTL));
-                unregister_code(KC_V);
-            }
-            return false;
-        case KC_CUT:
-            if (record->event.pressed) {
-                register_mods(mod_config(MOD_LCTL));
-                register_code(KC_X);
-            } else {
-                unregister_mods(mod_config(MOD_LCTL));
-                unregister_code(KC_X);
-            }
-            return false;
-            break;
-        case KC_UNDO:
-            if (record->event.pressed) {
-                register_mods(mod_config(MOD_LCTL));
-                register_code(KC_Z);
-            } else {
-                unregister_mods(mod_config(MOD_LCTL));
-                unregister_code(KC_Z);
-            }
-            return false;
         case KC_OS_TOG: if (record->event.pressed) os_next_and_save(); return false;
-
         case KC_TAB_N: if (record->event.pressed) tap_code16(C(KC_TAB)); return false;
         case KC_TAB_P: if (record->event.pressed) tap_code16(S(C(KC_TAB))); return false;
 
         case KC_DSK_L:
-        if (record->event.pressed) {
-            switch (user_config.os_mode) {
-            case OS_MAC: tap_code16(C(KC_LEFT)); break;         // Ctrl+← (Spaces)
-            case OS_WIN: tap_code16(G(C(KC_LEFT))); break;      // Win+Ctrl+←
-            case OS_LIN: tap_code16(G(KC_PGUP)); break;         // GNOME: Super+PgUp
+            if (record->event.pressed) {
+                switch (user_config.os_mode) {
+                case OS_MAC: tap_code16(C(KC_LEFT)); break;         // Ctrl+← (Spaces)
+                case OS_WIN: tap_code16(G(C(KC_LEFT))); break;      // Win+Ctrl+←
+                case OS_LIN: tap_code16(G(KC_PGUP)); break;         // GNOME: Super+PgUp
+                }
             }
-        }
-        return false;
-
+            return false;
         case KC_DSK_R:
-        if (record->event.pressed) {
-            switch (user_config.os_mode) {
-            case OS_MAC: tap_code16(C(KC_RIGHT)); break;        // Ctrl+→
-            case OS_WIN: tap_code16(G(C(KC_RIGHT))); break;     // Win+Ctrl+→
-            case OS_LIN: tap_code16(G(KC_PGDN)); break;         // GNOME: Super+PgDn
+            if (record->event.pressed) {
+                switch (user_config.os_mode) {
+                case OS_MAC: tap_code16(C(KC_RIGHT)); break;        // Ctrl+→
+                case OS_WIN: tap_code16(G(C(KC_RIGHT))); break;     // Win+Ctrl+→
+                case OS_LIN: tap_code16(G(KC_PGDN)); break;         // GNOME: Super+PgDn
+                }
             }
-        }
-        return false;
-
+            return false;
         case KC_SSHOT:
-        if (record->event.pressed) {
-            switch (user_config.os_mode) {
-            case OS_MAC: tap_code16(S(G(KC_4))); break;         // Cmd+Shift+4
-            case OS_WIN: tap_code16(S(G(KC_S))); break;         // Win+Shift+S
-            case OS_LIN: tap_code(KC_PSCR); break;              // GNOME overlay
+            if (record->event.pressed) {
+                switch (user_config.os_mode) {
+                case OS_MAC: tap_code16(S(G(KC_4))); break;         // Cmd+Shift+4
+                case OS_WIN: tap_code16(S(G(KC_S))); break;         // Win+Shift+S
+                case OS_LIN: tap_code(KC_PSCR); break;              // GNOME overlay
+                }
             }
-        }
-        return false;
-
+            return false;
         case KC_LOCK:
-        if (record->event.pressed) {
-            switch (user_config.os_mode) {
-            case OS_MAC: tap_code16(C(G(KC_Q))); break;         // Ctrl+Cmd+Q
-            case OS_WIN: tap_code16(G(KC_L)); break;            // Win+L
-            case OS_LIN: tap_code16(G(KC_L)); break;            // Super+L
+            if (record->event.pressed) {
+                switch (user_config.os_mode) {
+                case OS_MAC: tap_code16(C(G(KC_Q))); break;         // Ctrl+Cmd+Q
+                case OS_WIN: tap_code16(G(KC_L)); break;            // Win+L
+                case OS_LIN: tap_code16(G(KC_L)); break;            // Super+L
+                }
             }
-        }
-        return false;
-
+            return false;
         case KC_EMOJI:
-        if (record->event.pressed) {
-            switch (user_config.os_mode) {
-            case OS_MAC: tap_code16(C(G(KC_SPC))); break;       // Ctrl+Cmd+Space
-            case OS_WIN: tap_code16(G(KC_DOT)); break;          // Win+.
-            case OS_LIN: tap_code16(C(KC_DOT)); break;          // GNOME (ajústalo si usas otro)
+            if (record->event.pressed) {
+                switch (user_config.os_mode) {
+                case OS_MAC: tap_code16(C(G(KC_SPC))); break;       // Ctrl+Cmd+Space
+                case OS_WIN: tap_code16(G(KC_DOT)); break;          // Win+.
+                case OS_LIN: tap_code16(C(KC_DOT)); break;          // GNOME (ajústalo si usas otro)
+                }
             }
-        }
-        return false;
+            return false;
+        case KC_ANG_PAIR:
+            if (record->event.pressed) {
+                tap_code16(ES_LABK);  // <
+                tap_code16(ES_RABK);  // >
+                tap_code(KC_LEFT);
+            }
+            return false;
     }
     return true;
 }
@@ -431,8 +394,6 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case LT(_LOWER, KC_ENT):
         case LT(_RAISE, KC_SPC):
-        case SFT_PAREN_L:
-        case SFT_PAREN_R:
             return 190;
     }
     return TAPPING_TERM;
@@ -441,8 +402,6 @@ bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case LT(_LOWER, KC_ENT):
         case LT(_RAISE, KC_SPC):
-        case SFT_PAREN_L:
-        case SFT_PAREN_R:
             return true;
     }
     return false;
