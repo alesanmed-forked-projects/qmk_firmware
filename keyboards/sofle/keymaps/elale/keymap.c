@@ -1,6 +1,9 @@
 #include QMK_KEYBOARD_H
 #include "keymap_spanish.h"
 
+#define SFT_PAREN_L  LSFT_T(KC_LPRN)
+#define SFT_PAREN_R  RSFT_T(KC_RPRN)
+
 enum sofle_layers {
     /* _M_XYZ = Mac Os, _W_XYZ = Win/Linux */
     _QWERTY,
@@ -15,8 +18,40 @@ enum custom_keycodes {
     KC_NXTWD,
     KC_LSTRT,
     KC_LEND,
-    KC_DLINE
+    KC_DLINE,
+    KC_TAB_N,
+    KC_TAB_P,
+    KC_DSK_L,
+    KC_DSK_R,
+    KC_SSHOT,
+    KC_LOCK,
+    KC_EMOJI,
+    KC_OS_TOG
 };
+
+typedef enum { OS_WIN = 0, OS_MAC = 1, OS_LIN = 2 } os_mode_t;
+
+typedef union {
+    uint32_t raw;
+    struct { uint8_t os_mode : 2; };
+} user_config_t;
+
+static user_config_t user_config;
+
+void eeconfig_init_user(void) {
+    user_config.raw = 0;
+    user_config.os_mode = OS_WIN; // por defecto
+    eeconfig_update_user(user_config.raw);
+}
+
+void keyboard_post_init_user(void) {
+    user_config.raw = eeconfig_read_user();
+}
+
+static void os_next_and_save(void) {
+    user_config.os_mode = (user_config.os_mode + 1) % 3;
+    eeconfig_update_user(user_config.raw);
+}
 
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -40,7 +75,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   ES_MORD,  KC_1,   KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,  ES_QUOT,
   KC_ESC,   KC_Q,   KC_W,    KC_E,    KC_R,    KC_T,                     KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,  KC_BSPC,
   KC_TAB,   KC_A,   KC_S,    KC_D,    KC_F,    KC_G,                     KC_H,    KC_J,    KC_K,    KC_L, ES_NTIL,  ES_ACUT,
-  KC_LSFT,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B, KC_MUTE,     XXXXXXX,KC_N,    KC_M, KC_COMM,  KC_DOT, ES_MINS,  KC_RSFT,
+  SFT_PAREN_L, KC_Z,  KC_X,  KC_C,    KC_V,    KC_B, KC_MUTE,     XXXXXXX,KC_N,    KC_M, KC_COMM,  KC_DOT, ES_MINS,  SFT_PAREN_R,
      KC_LGUI,KC_LALT,KC_LCTL, MO(_LOWER), LT(_LOWER, KC_ENT),     LT(_RAISE, KC_SPC),  MO(_RAISE), KC_RCTL, KC_RALT, KC_RGUI
 ),
 /* LOWER
@@ -82,7 +117,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   _______, _______ , _______ , _______ , _______ , _______,                           _______,  _______  , _______,  _______ ,  _______ ,_______,
   _______,  KC_INS,  KC_PSCR,   KC_APP,  XXXXXXX, XXXXXXX,                        KC_PGUP, KC_PRVWD,   KC_UP, KC_NXTWD,KC_DLINE, KC_DEL,
   _______, KC_LALT,  KC_LCTL,  KC_LSFT,  XXXXXXX, KC_CAPS,                       KC_PGDN,  KC_LEFT, KC_DOWN, KC_RGHT,  KC_DEL, KC_BSPC,
-  _______,KC_UNDO, KC_CUT, KC_COPY, KC_PASTE, XXXXXXX,  _______,       _______,  XXXXXXX, KC_LSTRT, XXXXXXX, KC_LEND,   XXXXXXX, _______,
+  _______,KC_TAB_P, KC_TAB_N, KC_SSHOT, KC_LOCK, XXXXXXX,  _______,       _______,  XXXXXXX, KC_LSTRT, XXXXXXX, KC_LEND, KC_EMOJI, _______,
                          _______, _______, _______, _______, _______,       _______, _______, _______, _______, _______
 ),
 /* ADJUST
@@ -102,7 +137,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [_ADJUST] = LAYOUT(
   XXXXXXX , XXXXXXX,  XXXXXXX ,  XXXXXXX , XXXXXXX, XXXXXXX,                     XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
   QK_BOOT  , XXXXXXX,KC_QWERTY,  XXXXXXX  ,CG_TOGG,XXXXXXX,                     XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-  XXXXXXX , XXXXXXX,CG_TOGG, XXXXXXX,    XXXXXXX,  XXXXXXX,                     XXXXXXX, KC_VOLD, KC_MUTE, KC_VOLU, XXXXXXX, XXXXXXX,
+  XXXXXXX , XXXXXXX, KC_OS_TOG, XXXXXXX,    XXXXXXX,  XXXXXXX,                     XXXXXXX, KC_VOLD, KC_MUTE, KC_VOLU, XXXXXXX, XXXXXXX,
   XXXXXXX , XXXXXXX, XXXXXXX, CW_TOGG,    XXXXXXX,  XXXXXXX, KC_MUTE,     XXXXXXX, XXXXXXX, KC_MPRV, KC_MPLY, KC_MNXT, XXXXXXX, XXXXXXX,
                    _______, _______, _______, _______, _______,     _______, _______, _______, _______, _______
   ),
@@ -110,10 +145,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 #if defined(ENCODER_MAP_ENABLE)
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
-    [_QWERTY]  = { ENCODER_CCW_CW(KC_VOLU, KC_VOLD),           ENCODER_CCW_CW(KC_PGDN, KC_PGUP)  },
-    [_LOWER]   = { ENCODER_CCW_CW(KC_VOLU, KC_VOLD),           ENCODER_CCW_CW(KC_PGDN, KC_PGUP)  },
-    [_RAISE]   = { ENCODER_CCW_CW(KC_VOLU, KC_VOLD),           ENCODER_CCW_CW(KC_PGDN, KC_PGUP)  },
-    [_ADJUST]  = { ENCODER_CCW_CW(KC_VOLU, KC_VOLD),           ENCODER_CCW_CW(KC_PGDN, KC_PGUP)  },
+    [_QWERTY]  = { ENCODER_CCW_CW(KC_VOLU, KC_VOLD),           ENCODER_CCW_CW(KC_TAB_P, KC_TAB_N)  },
+    [_LOWER]   = { ENCODER_CCW_CW(C(KC_MINS), C(KC_EQL)),           ENCODER_CCW_CW(KC_WH_D, KC_WH_U)  },
+    [_RAISE]   = { ENCODER_CCW_CW(KC_DSK_L, KC_DSK_R),           ENCODER_CCW_CW(KC_PGDN, KC_PGUP)  },
+    [_ADJUST]  = { ENCODER_CCW_CW(KC_BRID, KC_BRIU),           ENCODER_CCW_CW(KC_MPRV, KC_MNXT)  },
 };
 #endif
 
@@ -320,6 +355,60 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 unregister_code(KC_Z);
             }
             return false;
+        case KC_OS_TOG: if (record->event.pressed) os_next_and_save(); return false;
+
+        case KC_TAB_N: if (record->event.pressed) tap_code16(C(KC_TAB)); return false;
+        case KC_TAB_P: if (record->event.pressed) tap_code16(S(C(KC_TAB))); return false;
+
+        case KC_DSK_L:
+        if (record->event.pressed) {
+            switch (user_config.os_mode) {
+            case OS_MAC: tap_code16(C(KC_LEFT)); break;         // Ctrl+← (Spaces)
+            case OS_WIN: tap_code16(G(C(KC_LEFT))); break;      // Win+Ctrl+←
+            case OS_LIN: tap_code16(G(KC_PGUP)); break;         // GNOME: Super+PgUp
+            }
+        }
+        return false;
+
+        case KC_DSK_R:
+        if (record->event.pressed) {
+            switch (user_config.os_mode) {
+            case OS_MAC: tap_code16(C(KC_RIGHT)); break;        // Ctrl+→
+            case OS_WIN: tap_code16(G(C(KC_RIGHT))); break;     // Win+Ctrl+→
+            case OS_LIN: tap_code16(G(KC_PGDN)); break;         // GNOME: Super+PgDn
+            }
+        }
+        return false;
+
+        case KC_SSHOT:
+        if (record->event.pressed) {
+            switch (user_config.os_mode) {
+            case OS_MAC: tap_code16(S(G(KC_4))); break;         // Cmd+Shift+4
+            case OS_WIN: tap_code16(S(G(KC_S))); break;         // Win+Shift+S
+            case OS_LIN: tap_code(KC_PSCR); break;              // GNOME overlay
+            }
+        }
+        return false;
+
+        case KC_LOCK:
+        if (record->event.pressed) {
+            switch (user_config.os_mode) {
+            case OS_MAC: tap_code16(C(G(KC_Q))); break;         // Ctrl+Cmd+Q
+            case OS_WIN: tap_code16(G(KC_L)); break;            // Win+L
+            case OS_LIN: tap_code16(G(KC_L)); break;            // Super+L
+            }
+        }
+        return false;
+
+        case KC_EMOJI:
+        if (record->event.pressed) {
+            switch (user_config.os_mode) {
+            case OS_MAC: tap_code16(C(G(KC_SPC))); break;       // Ctrl+Cmd+Space
+            case OS_WIN: tap_code16(G(KC_DOT)); break;          // Win+.
+            case OS_LIN: tap_code16(C(KC_DOT)); break;          // GNOME (ajústalo si usas otro)
+            }
+        }
+        return false;
     }
     return true;
 }
@@ -342,6 +431,8 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case LT(_LOWER, KC_ENT):
         case LT(_RAISE, KC_SPC):
+        case SFT_PAREN_L:
+        case SFT_PAREN_R:
             return 190;
     }
     return TAPPING_TERM;
@@ -350,6 +441,8 @@ bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case LT(_LOWER, KC_ENT):
         case LT(_RAISE, KC_SPC):
+        case SFT_PAREN_L:
+        case SFT_PAREN_R:
             return true;
     }
     return false;
